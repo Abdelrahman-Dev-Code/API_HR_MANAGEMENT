@@ -1,0 +1,399 @@
+{
+  "info": {
+    "name": "HR Management API - Complete Collection",
+    "description": "Complete collection for every API-exposed route and workflow. Run requests individually, never Run All: write/delete/workflow requests change data. List/create requests save IDs automatically. Set userId manually to an existing unlinked user; this API has no users endpoint. Database tables without API routes (including notifications) are not listed. Local seed credentials only.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "admin@example.com",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "password",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    { "key": "userId", "value": "", "type": "string" },
+    { "key": "departmentId", "value": "", "type": "string" },
+    { "key": "positionId", "value": "", "type": "string" },
+    { "key": "employeeId", "value": "", "type": "string" },
+    { "key": "documentId", "value": "", "type": "string" },
+    { "key": "holidayId", "value": "", "type": "string" },
+    { "key": "attendanceId", "value": "", "type": "string" },
+    { "key": "leaveId", "value": "", "type": "string" },
+    { "key": "leaveBalanceId", "value": "", "type": "string" },
+    { "key": "salaryId", "value": "", "type": "string" },
+    { "key": "roleId", "value": "", "type": "string" },
+    { "key": "permissionId", "value": "", "type": "string" },
+    { "key": "putResource", "value": "employees", "type": "string" },
+    { "key": "putResourceId", "value": "", "type": "string" },
+    { "key": "holidayDate", "value": "2027-01-01", "type": "string" },
+    { "key": "attendanceDate", "value": "2026-10-05", "type": "string" },
+    { "key": "shift", "value": "day", "type": "string" },
+    { "key": "leaveStartDate", "value": "2026-10-05", "type": "string" },
+    { "key": "leaveEndDate", "value": "2026-10-06", "type": "string" },
+    { "key": "balanceYear", "value": "2026", "type": "string" },
+    { "key": "salaryYear", "value": "2026", "type": "string" },
+    { "key": "salaryMonth", "value": "12", "type": "string" }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const idVariables = { '/api/departments': 'departmentId', '/api/positions': 'positionId', '/api/employees': 'employeeId', '/api/documents': 'documentId', '/api/holidays': 'holidayId', '/api/attendances': 'attendanceId', '/api/leaves': 'leaveId', '/api/leave-balances': 'leaveBalanceId', '/api/salaries': 'salaryId', '/api/roles': 'roleId', '/api/permissions': 'permissionId' };",
+          "const pathValue = pm.request.url.getPath();",
+          "const pathText = Array.isArray(pathValue) ? '/' + pathValue.join('/') : '/' + String(pathValue);",
+          "const normalizedPath = pathText.replace(/\\/{2,}/g, '/');",
+          "const apiStart = normalizedPath.indexOf('/api/');",
+          "const apiPath = apiStart >= 0 ? normalizedPath.substring(apiStart) : normalizedPath;",
+          "const requestName = pm.info.requestName || '';",
+          "const method = pm.request.method.toUpperCase();",
+          "let expectedStatus = null;",
+          "if (requestName.includes('expects 401')) expectedStatus = 401;",
+          "else if (requestName.includes('expects 422')) expectedStatus = 422;",
+          "else if (apiPath.endsWith('/auth/login')) expectedStatus = 200;",
+          "else if (apiPath.endsWith('/auth/logout')) expectedStatus = 204;",
+          "else if (method === 'GET' || method === 'PATCH' || method === 'PUT') expectedStatus = 200;",
+          "else if (method === 'DELETE') expectedStatus = 204;",
+          "else if (method === 'POST' && (apiPath.endsWith('/decision') || apiPath.endsWith('/pay'))) expectedStatus = 200;",
+          "else if (method === 'POST') expectedStatus = 201;",
+          "if (expectedStatus !== null) pm.test('HTTP status matches the API contract', () => pm.response.to.have.status(expectedStatus));",
+          "const variableName = idVariables[apiPath];",
+          "if (variableName && (pm.response.code === 200 || pm.response.code === 201)) {",
+          "  try {",
+          "    const responseBody = pm.response.json();",
+          "    const records = Array.isArray(responseBody.data) ? responseBody.data : (responseBody.data && Array.isArray(responseBody.data.data) ? responseBody.data.data : []);",
+          "    const record = pm.response.code === 201 ? responseBody.data : records[0];",
+          "    if (record && record.id) pm.collectionVariables.set(variableName, String(record.id));",
+          "    if (apiPath === '/api/employees' && record && record.work_shift) pm.collectionVariables.set('shift', record.work_shift);",
+          "  } catch (error) {}",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Health and authentication",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": "{{baseUrl}}/up"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('API is healthy', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unauthenticated request (expects 401)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" }
+            ],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Missing token returns 401', () => pm.response.to.have.status(401));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (saves token)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"device_name\": \"postman\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login succeeds', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('token', pm.response.json().token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Current user",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" }
+            ],
+            "url": "{{baseUrl}}/api/auth/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Authenticated user returned', () => pm.response.to.have.status(200));"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (clears saved token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" }
+            ],
+            "url": "{{baseUrl}}/api/auth/logout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logout succeeds', () => pm.response.to.have.status(204));",
+                  "if (pm.response.code === 204) {",
+                  "  pm.collectionVariables.unset('token');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Read APIs (requires permissions)",
+      "item": [
+        { "name": "Employees", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/employees?per_page=15" } },
+        { "name": "Departments", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/departments?per_page=15" } },
+        { "name": "Positions", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/positions?per_page=15" } },
+        { "name": "Documents", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/documents?per_page=15" } },
+        { "name": "Holidays", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/holidays?per_page=15" } },
+        { "name": "Attendance", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/attendances?per_page=15" } },
+        { "name": "Leaves", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/leaves?per_page=15" } },
+        { "name": "Leave balances", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/leave-balances?per_page=15" } },
+        { "name": "Payroll", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/salaries?per_page=15" } },
+        { "name": "Roles", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/roles?per_page=15" } },
+        { "name": "Permissions", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/permissions?per_page=15" } },
+        { "name": "Organization settings", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "url": "{{baseUrl}}/api/organization" } }
+      ]
+    },
+    {
+      "name": "03 - Validation smoke test",
+      "item": [
+        {
+          "name": "Missing permission fields (expects 422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/permissions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Validation returns 422', () => pm.response.to.have.status(422));"]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Employees (writes data)",
+      "description": "Employee creation requires userId: an existing user not linked to an employee. There is no users endpoint; set userId manually. DELETE soft-deletes the employee, so use test data.",
+      "item": [
+        { "name": "Create employee (requires userId)", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"user_id\": \"{{userId}}\",\n  \"department_id\": \"{{departmentId}}\",\n  \"position_id\": \"{{positionId}}\",\n  \"employee_code\": \"PM-EMP-{{$guid}}\",\n  \"name\": \"Postman Employee\",\n  \"email\": \"postman-{{$guid}}@example.test\",\n  \"basic_salary\": 5000,\n  \"hire_date\": \"2026-01-01\",\n  \"birth_date\": \"1995-01-01\",\n  \"gender\": \"male\",\n  \"status\": \"active\",\n  \"work_shift\": \"day\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/employees" } },
+        { "name": "Show employee", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/employees/{{employeeId}}" } },
+        { "name": "Update employee", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"phone\": \"+966500000000\",\n  \"status\": \"active\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/employees/{{employeeId}}" } },
+        { "name": "DELETE employee (destructive)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/employees/{{employeeId}}" } }
+      ]
+    },
+    {
+      "name": "05 - Departments (writes data)",
+      "item": [
+        { "name": "Create department", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"department_name\": \"Postman Department {{$guid}}\",\n  \"code\": \"PM-DEP-{{$guid}}\",\n  \"description\": \"Postman test department\",\n  \"is_active\": true\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/departments" } },
+        { "name": "Show department", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/departments/{{departmentId}}" } },
+        { "name": "Update department", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"description\": \"Updated from Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/departments/{{departmentId}}" } },
+        { "name": "DELETE department (destructive)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/departments/{{departmentId}}" } }
+      ]
+    },
+    {
+      "name": "06 - Positions (writes data)",
+      "item": [
+        { "name": "Create position", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"position_name\": \"Postman Position {{$guid}}\",\n  \"code\": \"PM-POS-{{$guid}}\",\n  \"description\": \"Postman test position\",\n  \"is_active\": true\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/positions" } },
+        { "name": "Show position", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/positions/{{positionId}}" } },
+        { "name": "Update position", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"description\": \"Updated from Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/positions/{{positionId}}" } },
+        { "name": "DELETE position (destructive)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/positions/{{positionId}}" } }
+      ]
+    },
+    {
+      "name": "07 - Documents (writes data)",
+      "description": "Choose a local PDF/JPG/PNG file in the file row before sending upload. Stored documents remain private.",
+      "item": [
+        { "name": "Create document (select file)", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "body": { "mode": "formdata", "formdata": [{ "key": "document_name", "value": "Postman document", "type": "text" }, { "key": "document_type", "value": "contract", "type": "text" }, { "key": "employee_id", "value": "{{employeeId}}", "type": "text" }, { "key": "file", "type": "file", "src": [] }] }, "url": "{{baseUrl}}/api/documents" } },
+        { "name": "Show document", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/documents/{{documentId}}" } },
+        { "name": "Download document", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/documents/{{documentId}}/download" } },
+        { "name": "Update document metadata", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"document_name\": \"Updated Postman document\",\n  \"notes\": \"Updated from Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/documents/{{documentId}}" } },
+        { "name": "Replace document file (select local file)", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }], "body": { "mode": "formdata", "formdata": [{ "key": "document_name", "value": "Replaced Postman document", "type": "text" }, { "key": "file", "type": "file", "src": [] }] }, "url": "{{baseUrl}}/api/documents/{{documentId}}" } },
+        { "name": "DELETE document (soft delete)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/documents/{{documentId}}" } }
+      ]
+    },
+    {
+      "name": "08 - Holidays (writes data)",
+      "item": [
+        { "name": "Create holiday", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"holiday_name\": \"Postman Holiday {{$timestamp}}\",\n  \"holiday_date\": \"{{holidayDate}}\",\n  \"is_recurring\": false\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/holidays" } },
+        { "name": "Show holiday", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/holidays/{{holidayId}}" } },
+        { "name": "Update holiday", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"description\": \"Updated from Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/holidays/{{holidayId}}" } },
+        { "name": "DELETE holiday (destructive)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/holidays/{{holidayId}}" } }
+      ]
+    },
+    {
+      "name": "09 - Attendance (writes data; no DELETE route)",
+      "item": [
+        { "name": "Create attendance", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"employee_id\": \"{{employeeId}}\",\n  \"attendance_date\": \"{{attendanceDate}}\",\n  \"shift\": \"{{shift}}\",\n  \"check_in_at\": \"{{attendanceDate}} 09:00:00\",\n  \"check_out_at\": \"{{attendanceDate}} 17:00:00\",\n  \"status\": \"present\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/attendances" } },
+        { "name": "Show attendance", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/attendances/{{attendanceId}}" } },
+        { "name": "Update attendance", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"notes\": \"Updated from Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/attendances/{{attendanceId}}" } }
+      ]
+    },
+    {
+      "name": "10 - Leaves (workflow changes state)",
+      "item": [
+        { "name": "Create leave request", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"employee_id\": \"{{employeeId}}\",\n  \"leave_type\": \"casual\",\n  \"start_date\": \"{{leaveStartDate}}\",\n  \"end_date\": \"{{leaveEndDate}}\",\n  \"reason\": \"Postman workflow test\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/leaves" } },
+        { "name": "Show leave", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/leaves/{{leaveId}}" } },
+        { "name": "Update pending leave", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Updated from Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/leaves/{{leaveId}}" } },
+        { "name": "Approve leave (requires leaves.approve and balance)", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"decision\": \"approved\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/leaves/{{leaveId}}/decision" } },
+        { "name": "Reject leave (requires leaves.approve)", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"decision\": \"rejected\",\n  \"rejection_reason\": \"Postman test rejection\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/leaves/{{leaveId}}/decision" } },
+        { "name": "DELETE pending leave (destructive)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/leaves/{{leaveId}}" } }
+      ]
+    },
+    {
+      "name": "11 - Leave balances (writes data)",
+      "item": [
+        { "name": "Create leave balance", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"employee_id\": \"{{employeeId}}\",\n  \"year\": \"{{balanceYear}}\",\n  \"leave_type\": \"casual\",\n  \"allocated_days\": 5\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/leave-balances" } },
+        { "name": "Show leave balance", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/leave-balances/{{leaveBalanceId}}" } },
+        { "name": "Update leave balance", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"allocated_days\": 6\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/leave-balances/{{leaveBalanceId}}" } },
+        { "name": "DELETE leave balance (destructive)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/leave-balances/{{leaveBalanceId}}" } }
+      ]
+    },
+    {
+      "name": "12 - Payroll (workflow changes state)",
+      "item": [
+        { "name": "Create salary draft", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"employee_id\": \"{{employeeId}}\",\n  \"year\": \"{{salaryYear}}\",\n  \"month\": \"{{salaryMonth}}\",\n  \"working_days\": 22,\n  \"basic_amount\": 5000,\n  \"deductions\": 0,\n  \"bonus\": 0,\n  \"overtime_amount\": 0\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/salaries" } },
+        { "name": "Show salary", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/salaries/{{salaryId}}" } },
+        { "name": "Update salary draft", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"bonus\": 100\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/salaries/{{salaryId}}" } },
+        { "name": "Approve salary (requires payroll.approve)", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"decision\": \"approved\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/salaries/{{salaryId}}/decision" } },
+        { "name": "Reject salary (requires payroll.approve)", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"decision\": \"rejected\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/salaries/{{salaryId}}/decision" } },
+        { "name": "Pay approved salary (requires payroll.pay)", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/salaries/{{salaryId}}/pay" } },
+        { "name": "DELETE salary draft (destructive)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/salaries/{{salaryId}}" } }
+      ]
+    },
+    {
+      "name": "13 - Roles (writes authorization data)",
+      "item": [
+        { "name": "Create role", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"role_name\": \"postman-{{$guid}}\",\n  \"display_name\": \"Postman test role\",\n  \"description\": \"Created for API testing\",\n  \"is_active\": true,\n  \"permission_ids\": []\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/roles" } },
+        { "name": "Show role", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/roles/{{roleId}}" } },
+        { "name": "Update role", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"description\": \"Updated from Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/roles/{{roleId}}" } },
+        { "name": "DELETE role (destructive)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/roles/{{roleId}}" } }
+      ]
+    },
+    {
+      "name": "14 - Permissions (writes authorization data)",
+      "item": [
+        { "name": "Create permission", "request": { "method": "POST", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"permission_name\": \"postman.read.{{$guid}}\",\n  \"display_name\": \"Postman test permission\",\n  \"description\": \"Created for API testing\",\n  \"group\": \"postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/permissions" } },
+        { "name": "Show permission", "request": { "method": "GET", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/permissions/{{permissionId}}" } },
+        { "name": "Update permission", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"description\": \"Updated from Postman\"\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/permissions/{{permissionId}}" } },
+        { "name": "DELETE permission (destructive)", "request": { "method": "DELETE", "header": [{ "key": "Accept", "value": "application/json" }], "url": "{{baseUrl}}/api/permissions/{{permissionId}}" } }
+      ]
+    },
+    {
+      "name": "15 - Organization (updates company settings)",
+      "item": [
+        { "name": "Update organization settings", "request": { "method": "PATCH", "header": [{ "key": "Accept", "value": "application/json" }, { "key": "Accept-Language", "value": "ar" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"company_name\": \"Postman Test Company\",\n  \"weekend_days\": [\"Friday\", \"Saturday\"]\n}", "options": { "raw": { "language": "json" } } }, "url": "{{baseUrl}}/api/organization" } }
+      ]
+    },
+    {
+      "name": "16 - PUT update (alternative to PATCH)",
+      "description": "Set putResource to a supported resource name and putResourceId to an existing record ID. Supported: employees, departments, positions, documents, holidays, attendances, leaves, leave-balances, salaries, roles, permissions. Organization only supports PATCH.",
+      "item": [
+        {
+          "name": "PUT resource (no-op body; set variables first)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Accept-Language", "value": "ar" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{}", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/api/{{putResource}}/{{putResourceId}}"
+          }
+        }
+      ]
+    }
+  ]
+}
